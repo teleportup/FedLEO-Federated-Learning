@@ -1,0 +1,72 @@
+import sys
+import argparse
+
+def main():
+    parser = argparse.ArgumentParser(description='FedLEO: Федеративное обучение для спутников')
+    parser.add_argument('--version', choices=['v1', 'v2'], default='v2',
+                        help='Версия FedLEO (v1=данные на Землю, v2=обучение на спутниках)')
+    
+    args = parser.parse_args()
+    
+    if args.version == 'v1':
+        print("✨ Запуск FedLEO v1.0 (Classical Federated Learning)")
+        print("   • Ground Station обучает модель")
+        print("   • Спутники отправляют данные на Землю")
+        print("   • Медленнее, но проще для понимания\n")
+        from fedleo_complete import Satellite, GroundStation, FedLEO_algorithm
+        from tensorflow.keras.datasets import mnist
+        import tensorflow as tf
+        from tensorflow import keras
+        from tensorflow.keras import layers
+        
+        (x_train, y_train), (x_test, y_test) = mnist.load_data()
+        x_train = x_train.reshape(-1, 784).astype('float32') / 255.0
+        x_test = x_test.reshape(-1, 784).astype('float32') / 255.0
+        
+        def create_model():
+            return keras.Sequential([
+                layers.Dense(64, activation='relu', input_shape=(784,)),
+                layers.Dense(10, activation='softmax')
+            ])
+        
+        satellites = []
+        for i in range(4):
+            sat = Satellite(i, create_model(), x_train[i*15000:(i+1)*15000], 
+                          y_train[i*15000:(i+1)*15000])
+            satellites.append(sat)
+        
+        ground_station = GroundStation(create_model())
+        FedLEO_algorithm(satellites, ground_station, num_rounds=2, epochs=1)
+        
+    elif args.version == 'v2':
+        print("⭐ Запуск FedLEO v2.0 (Satellite-Based Training)")
+        print("   • Спутники полностью обучают модели")
+        print("   • На Землю отправляются только веса (~200KB)")
+        print("   • Быстрее, приватнее, реалистичнее\n")
+        from fedleo_v2_satellite_training import SatelliteV2, GroundStationV2, fedleo_v2_training
+        from tensorflow.keras.datasets import mnist
+        import tensorflow as tf
+        from tensorflow import keras
+        from tensorflow.keras import layers
+        
+        (x_train, y_train), (x_test, y_test) = mnist.load_data()
+        x_train = x_train.reshape(-1, 784).astype('float32') / 255.0
+        x_test = x_test.reshape(-1, 784).astype('float32') / 255.0
+        
+        def create_model():
+            return keras.Sequential([
+                layers.Dense(64, activation='relu', input_shape=(784,)),
+                layers.Dense(10, activation='softmax')
+            ])
+        
+        satellites = []
+        for i in range(4):
+            sat = SatelliteV2(i, create_model(), x_train[i*15000:(i+1)*15000], 
+                            y_train[i*15000:(i+1)*15000])
+            satellites.append(sat)
+        
+        ground_station = GroundStationV2(create_model())
+        fedleo_v2_training(satellites, ground_station, num_rounds=2, epochs=1)
+
+if __name__ == "__main__":
+    main()
